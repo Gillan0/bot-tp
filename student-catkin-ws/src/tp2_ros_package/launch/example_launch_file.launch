@@ -1,0 +1,3 @@
+<launch>
+	<node pkg="tp2_ros_package" type="teleoperation_node.py" name="my_teleoperation_node" output="screen" />
+</launch>
