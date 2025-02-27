@@ -65,23 +65,23 @@ class Teleoperation_Node:
 			self.linear_velocity_cmd = self.linear_velocity
 			self.angular_velocity_cmd = 0
 		# Backward
-		elif (key == self._keys[1]):
+		elif (key == "j"):
 			self.linear_velocity_cmd = -self.linear_velocity
 			self.angular_velocity_cmd = 0
 		# Turn right
-		elif (key == self._keys[2]):
+		elif (key == "k"):
 			self.linear_velocity_cmd = 0
 			self.angular_velocity_cmd = -self.angular_velocity
 		# Turn left
-		elif (key == self._keys[3]):
+		elif (key == "h"):
 			self.linear_velocity_cmd = 0
 			self.angular_velocity_cmd = self.angular_velocity
 		# Increase speed
-		elif (key == self._keys[4]):
+		elif (key == "f"):
 			self.linear_velocity *= 1.10
 			self.angular_velocity *= 1.10
 		# Decrease speed
-		elif (key == self._keys[5]):
+		elif (key == "s"):
 			self.linear_velocity *= 0.90
 			self.angular_velocity *= 0.90
 
