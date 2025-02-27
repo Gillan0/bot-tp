@@ -34,7 +34,7 @@ class Teleoperation_Node:
 		self.rate = rospy.Rate(2)
 
 		# Get control keys
-		self._keys = rospy.get_params('listKeys')
+		self._keys = rospy.get_param('listKeys')
 
 		# Main control loop
 		self.controlBehaviour()
