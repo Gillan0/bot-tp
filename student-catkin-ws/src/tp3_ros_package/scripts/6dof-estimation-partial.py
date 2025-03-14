@@ -80,6 +80,33 @@ class Estimation_Node:
 					break
 			
 		return isAllOrthogonal
+	
+	def solveLeastSquare(self, H):
+		"""
+		Util method
+		Returns the a,b,c parameters of the LS problem as 
+		stated in TP.
+		We use this optimal solution : 
+		( (H^t * H) ^ (-1) ) * (H^t) * y 
+		"""
+		y = np.array([-1] * H.shape[0]).reshape(-1, 1)
+		solution = np.dot(np.dot(np.linalg.inv(np.dot(H.t, H)), H.t), y)
+
+		return solution
+
+
+
+	def computeLinearSolution(self):
+		"""
+		Util method
+		Our implementation of np.linalg.solve
+		"""
+		A = np.transpose(np.hstack((self.plane_params["red"],
+				self.plane_params["blue"],
+				self.plane_params["green"])))
+		Y = -1 * np.ones((3,1))
+
+		return np.dot(np.linalg.inv(A), Y)
 
 	def estimate_pose_callback(self, pointcloud_msg):
 		#print 'Received PointCloud2 message. Reading data...'
@@ -102,12 +129,8 @@ class Estimation_Node:
 			return 
 		
 		# Estimate the plane equation for each colored point set using Least Squares algorithm
-		H = {}
 		for (key, item) in self.plane_points.items():
-			H[key] = np.array(item)
-			y = np.array([-1] * H[key].shape[0]).reshape(-1, 1)
-			solution = np.linalg.lstsq(H[key], y)[0]
-			self.plane_params[key] = solution
+			self.plane_params[key] = self.solveLeastSquare(np.array(item))
 
 
 		# Verify that each pair of 3D planes are approximately orthogonal to each other			
@@ -117,12 +140,7 @@ class Estimation_Node:
 
 		# Feature detection
 		# Solve 3x3 linear system of equations given by the three intersecting planes, in order to find their point of intersection
-		A = np.transpose(np.hstack((self.plane_params["red"],
-				self.plane_params["blue"],
-				self.plane_params["green"])))
-		
-		Y = -1 * np.ones((3,1))
-		self.linear_solution = np.linalg.solve(A, Y)
+		self.linear_solution = self.computeLinearSolution();
 
 		# Obtain z-axis (blue) vector as the vector orthogonal to the 3D plane defined by the red (x-axis) and the green (y-axis)
 		z_axis = self.plane_params["blue"]/np.linalg.norm(self.plane_params["blue"])
