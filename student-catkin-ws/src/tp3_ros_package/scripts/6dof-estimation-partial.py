@@ -90,7 +90,7 @@ class Estimation_Node:
 		( (H^t * H) ^ (-1) ) * (H^t) * y 
 		"""
 		y = np.array([-1] * H.shape[0]).reshape(-1, 1)
-		solution = np.dot(np.dot(np.linalg.inv(np.dot(H.t, H)), H.t), y)
+		solution = np.dot(np.dot(np.linalg.inv(np.dot(np.transpose(H), H)), np.transpose(H)), y)
 
 		return solution
 
