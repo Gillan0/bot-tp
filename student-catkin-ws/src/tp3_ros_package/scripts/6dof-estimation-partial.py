@@ -57,11 +57,11 @@ class Estimation_Node:
 
 		@return boolean
 		"""
-		if (self.plane_points["red"] < self.num_of_plane_points):
+		if (len(self.plane_points["red"]) < self.num_of_plane_points):
 			return False
-		if (self.plane_points["blue"] < self.num_of_plane_points):
+		if (len(self.plane_points["blue"]) < self.num_of_plane_points):
 			return False
-		if (self.plane_points["green"] < self.num_of_plane_points):
+		if (len(self.plane_points["green"]) < self.num_of_plane_points):
 			return False
 		return True
 	
