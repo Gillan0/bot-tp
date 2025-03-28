@@ -165,7 +165,8 @@ class Estimation_Node:
 
 		# Publish the transform using the data stored in the 'self.feature_pose'
 		self.br.sendTransform((self.feature_pose.translation.x, self.feature_pose.translation.y, self.feature_pose.translation.z), self.feature_pose.rotation, rospy.Time.now(), "corner_6dof_pose", "camera_depth_optical_frame") 
-		print("Sent message")	
+		print("Computed intersection at : ")
+		print("x : " + str(self.feature_pose.translation.x) + " | y : " + str(self.feature_pose.translation.y) + " | z : " + str(self.feature_pose.translation.z))	
 
 		# Empty points
 		self.empty_points()
