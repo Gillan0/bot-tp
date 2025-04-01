@@ -20,11 +20,11 @@ class ReactiveNode:
 		self.histSize = 10
 
 		# Threshold in angle variation
-		self.angleAccThreshold = 0.05
+		self.angleAccThreshold = 0.001
 
 		self.timeLastCollision = None
 
-		self.motorStopTime = rospy.Time(2)
+		self.motorStopTime = rospy.Time(5)
 
 
 		rospy.Subscriber("/mobile_base/sensors/imu_data", Imu, self.callback) # ROS topic subscription
@@ -56,6 +56,7 @@ class ReactiveNode:
 		# If no collision is detected now, check time elapsed to activate motors
 		if (not(self.checkCollisions())):
 			self.handleMotorEnabling()
+			return
 		
 		# Collision has been detected
 		self.handleCollisionBehaviour()
@@ -66,26 +67,26 @@ class ReactiveNode:
 		In case a collision has been detected before,
 		enables the motors after a certain amount of time
 		"""
-		# No collision so no need to activate the motors again
-		if (self.timeLastCollision is None):
+		# Failsafe is motor has been previously disabled but no collision detected
+		if (self.timeLastCollision is None):			
+			self.startMotors()
 			return
 
 		# User must wait a certain amount of time before motors are active once again
-		if (rospy.Time.now() >= self.timeLastCollision + self.motorStopTime):
+		if (rospy.Time.now().to_sec() >= self.timeLastCollision.to_sec() + self.motorStopTime.to_sec()):
 			self.timeLastCollision = None
 			self.startMotors()
-			print(rospy.get_caller_id() + " > " + self.motorStopTime.to_sec() + " seconds have elapsed. Enabling motors")
+			print(rospy.get_caller_id() + " > " + str(self.motorStopTime.to_sec()) + " seconds have elapsed. Enabling motors")
 
 	def handleCollisionBehaviour (self):
 		"""
 		Updates time since last collision and
 		stop motors
 		"""
-		print(rospy.get_caller_id() + " > Collision detected !")
 		if (self.timeLastCollision is None):
 			self.timeLastCollision = rospy.Time.now()
-
-		print(rospy.get_caller_id() + " > Motors shutting down for : " + self.motorStopTime.to_sec() + " seconds")
+			print(rospy.get_caller_id() + " > Collision detected !")
+			print(rospy.get_caller_id() + " > Motors shutting down for : " + str(self.motorStopTime.to_sec()) + " seconds")
 		self.stopMotors()
 
 	def updateHistory(self, imuData):
@@ -111,10 +112,11 @@ class ReactiveNode:
 		is too far to the mean, we detect a collision
 
 		"""
-		lastAngle = self.angleHist[-1]
-		angleMean = np.mean(np.array(self.angleHist[:-1]), axis=0)
+		lastAngles = np.mean(np.array(self.angleHist[:self.histSize//2]), axis=0)
+		angleMean = np.mean(np.array(self.angleHist[self.histSize//2:]), axis=0)
 
-		if (np.linalg.norm(angleMean - lastAngle) > self.angleAccThreshold):
+
+		if (np.linalg.norm(angleMean - lastAngles) > self.angleAccThreshold):
 			return True
 		return False
 
@@ -133,4 +135,4 @@ class ReactiveNode:
 
 
 if __name__ == '__main__':
-    process = ReactiveNode('process_node')
+    process = ReactiveNode('reactive_node')
