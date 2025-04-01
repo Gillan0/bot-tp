@@ -10,7 +10,7 @@ import random
 
 class PlanningNode :
 
-    def __init__(self, node_name):
+    def __init__(self, node_name, start=None, end=None):
 
         self.nname = node_name
 
@@ -19,7 +19,7 @@ class PlanningNode :
         # Connectivity of the map. Can either be :
         # 4-connected : north, south, east, west
         # 8-connected : north, south, east, west, north-east, north-west, south-east, south-west
-        self.connectivity = rospy.get_param('~connectivity', 4) 
+        self.connectivity = rospy.get_param('~connectivity', 8) 
 
         if (self.connectivity != 4 and self.connectivity != 8):
             raise ValueError("Connectivity must be equal to 4 or 8")
@@ -29,8 +29,8 @@ class PlanningNode :
         # Instanciates variables for later use
         self.mapInfo = None
         self.map = None
-        self.start = None
-        self.end = None
+        self.start = start
+        self.end = end
 
         # Set some constants for better code readability
         self.FREE_SPACE = 0
@@ -42,37 +42,50 @@ class PlanningNode :
 
         rospy.spin()
 
-        print('Exiting node ' + rospy.get_name()) # This will only be executed if 'rospy.spin()' finishes, after having pressed Ctrl+c
-
 
     def callback(self, msg):
         """
-        Main method of the 
+        Main method of the Node
+        Receives a map then traces the path between
         """
         if (msg.data == self.map):
             print(rospy.get_caller_id() + "> Map already received")
             return
-        
+        # Get map and map info like width and height
         self.mapInfo = msg.info
-        self.map = msg.data
+        self.map = list(msg.data)
 
-        self.start, self.end = self.computePathExtremeties()
+        # Randomly generates start and end point if not specified
+        if (self.start is None):
+                self.start, self.end = self.computePathExtremeties()
 
+        # Tries to compute a path between start and end
+        # If not possible randomly generates another pair
         isPathPossible = self.computePath()
-
-
         if (not(isPathPossible)):
             print(rospy.get_caller_id() + "> No path possible for ")
             print("start x : " + str(self.start[0]) + " y : " + str(self.start[1]) )
             print("end x : " + str(self.end[0]) + " y : " + str(self.end[1]) )
-            return 
 
+            self.start, self.end = self.computePathExtremeties()
+            isPathPossible = self.computePath()
+
+        # Save the map as an image file
         self.saveMap()
 
+        # Exit the node
+        rospy.signal_shutdown('Exiting node ' + rospy.get_name())
+
     def convertToRealWorldCoordinates(self, i):
+        """
+        Converts Map coordinates to (x,y) coordinates
+        """
         return [i % self.mapInfo.width, i // self.mapInfo.width]
 
     def computePathExtremeties(self):
+        """
+        Assign 2 random points to start and end 
+        """
         freeSpaces = []
         for i in range(len(self.map)):
             if (self.map[i] == self.FREE_SPACE):
@@ -83,20 +96,29 @@ class PlanningNode :
         return self.convertToRealWorldCoordinates(i), self.convertToRealWorldCoordinates(j)
 
     def drawPath(self, path):
+        """
+        Traces back through path directory 
+        and changes the values on the map list
+        according to their types :
+        START_SPACE, END_SPACE and PATH_SPACE 
+        """
+
+        # Changes end space
         currentSpace = self.end
         x, y = currentSpace 
         spaceCoor = self.getMapCoordinates(x, y)
         self.map[spaceCoor] = self.END_SPACE
-
-        currentSpace = path[self.end]
-
-        while currentSpace != self.start:            
+        
+        # Changes path spaces
+        currentSpace = path[tuple(self.end)]
+        while currentSpace != tuple(self.start):            
             x, y = currentSpace 
             spaceCoor = self.getMapCoordinates(x, y)
             self.map[spaceCoor] = self.PATH_SPACE
             
             currentSpace = path[currentSpace]
 
+        # Changes start space
         x, y = currentSpace 
         spaceCoor = self.getMapCoordinates(x, y)
         self.map[spaceCoor] = self.START_SPACE
@@ -112,7 +134,7 @@ class PlanningNode :
         
         # All points to traverse. Init with start of path
         pointsToTraverse = []
-        heappush(pointsToTraverse, (0, self.start))
+        heappush(pointsToTraverse, (0, tuple(self.start)))
 
         # Dictionnary of all points traversed following this pattern :
         # key : Space ->  value : formerSpace in path
@@ -122,15 +144,15 @@ class PlanningNode :
         # g : cost of the path from start to space
         # h : heuristic which estimates the cost from space to end space
         # h is computed by self.heuristic method so no need to store it in a dict
-        f = {self.start : self.heuristic(self.start)}
-        g = {self.start: 0}
+        f = {tuple(self.start) : self.heuristic(self.start)}
+        g = {tuple(self.start): 0}
         
 
         while pointsToTraverse != []:
 
             currentSpace = heappop(pointsToTraverse)[1]
-            
-            if currentSpace == self.end:
+
+            if currentSpace == tuple(self.end):
                 self.drawPath(path)
                 return True
                 
@@ -139,15 +161,15 @@ class PlanningNode :
             for neighbourSpace in self.getNeighbours(x, y):
 
                 # Try to access neighbourSpace from currentSpace
-                gScoreCandidate = g[currentSpace] + self.cost(currentSpace, neighbourSpace)
+                gScoreCandidate = g[tuple(currentSpace)] + self.cost(currentSpace, neighbourSpace)
                 
                 # If currentSpace is better than formerly recorded space
                 # we update the g score
-                if neighbourSpace not in g or gScoreCandidate < g[neighbourSpace]:
+                if neighbourSpace not in g or gScoreCandidate < g[tuple(neighbourSpace)]:
                     
-                    path[neighbourSpace] = currentSpace
-                    g[neighbourSpace] = gScoreCandidate
-                    f[neighbourSpace] = gScoreCandidate + self.heuristic(neighbourSpace)
+                    path[tuple(neighbourSpace)] = tuple(currentSpace)
+                    g[tuple(neighbourSpace)] = gScoreCandidate
+                    f[tuple(neighbourSpace)] = gScoreCandidate + self.heuristic(neighbourSpace)
 
                     heappush(pointsToTraverse, (f[neighbourSpace], neighbourSpace))
         
@@ -160,11 +182,12 @@ class PlanningNode :
         """
         return np.linalg.norm(np.array(point2) - np.array(point1))
     
-    def heuristic(self, x, y):
+    def heuristic(self, space):
         """
         Determines the distance between space with (x, y) coordinate 
         and end point
         """
+        x, y = space
         dx = abs(self.end[0] - x)
         dy = abs(self.end[1] - y)
 
@@ -190,7 +213,7 @@ class PlanningNode :
         # Add all valid neighbours to list
         for dx, dy in directions:
             if self.isValidSpace(x+dx, y+dy):
-                neighbors.append([x+dx, y+dy])
+                neighbors.append((x+dx, y+dy))
         
         return neighbors
 
@@ -209,17 +232,19 @@ class PlanningNode :
     def saveMap(self):
         """
         Saves the map with A* path
+        Image is saved in terminal where node is run
         """
         image = np.zeros((self.mapInfo.height, self.mapInfo.width, 3), dtype=np.uint8)
-        
+        mapArray = np.array(self.map).reshape((self.mapInfo.height, self.mapInfo.width))
+
         # Convert image data to image
-        image[self.map == self.OCCUPIED_SPACE] = [0,0,0]
-        image[self.map == self.UNKNOWN_SPACE] = [128,128,128]
-        image[self.map == self.FREE_SPACE] = [255,255,255]
+        image[mapArray == self.OCCUPIED_SPACE] = [0,0,0]
+        image[mapArray == self.UNKNOWN_SPACE] = [128,128,128]
+        image[mapArray == self.FREE_SPACE] = [255,255,255]
         
-        image[self.map == self.START_SPACE] = [0,255,0]
-        image[self.map == self.END_SPACE] = [255,0,0]  
-        image[self.map == self.PATH_SPACE] = [128,0,128]  
+        image[mapArray == self.START_SPACE] = [0,255,0]
+        image[mapArray == self.END_SPACE] = [255,0,0]  
+        image[mapArray == self.PATH_SPACE] = [128,0,128]  
 
         # Adapt image to normal coordinates
         image = cv2.flip(image, 0)
