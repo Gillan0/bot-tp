@@ -50,7 +50,7 @@ class PlanningNode :
         Main method of the 
         """
         if (msg.data == self.map):
-            print(f"{rospy.get_caller_id()} > No path possible for start : {self.start} and end : {self.end}")
+            print(rospy.get_caller_id() + "> Map already received")
             return
         
         self.mapInfo = msg.info
@@ -62,7 +62,9 @@ class PlanningNode :
 
 
         if (not(isPathPossible)):
-            print(f"{rospy.get_caller_id()} > No path possible for start : {self.start} and end : {self.end}")
+            print(rospy.get_caller_id() + "> No path possible for ")
+            print("start x : " + str(self.start[0]) + " y : " + str(self.start[1]) )
+            print("end x : " + str(self.end[0]) + " y : " + str(self.end[1]) )
             return 
 
         self.saveMap()
@@ -82,18 +84,21 @@ class PlanningNode :
 
     def drawPath(self, path):
         currentSpace = self.end
-        spaceCoor = self.getMapCoordinates(currentSpace)
+        x, y = currentSpace 
+        spaceCoor = self.getMapCoordinates(x, y)
         self.map[spaceCoor] = self.END_SPACE
 
         currentSpace = path[self.end]
 
-        while currentSpace != self.start:
-            spaceCoor = self.getMapCoordinates(currentSpace)
+        while currentSpace != self.start:            
+            x, y = currentSpace 
+            spaceCoor = self.getMapCoordinates(x, y)
             self.map[spaceCoor] = self.PATH_SPACE
             
             currentSpace = path[currentSpace]
 
-        spaceCoor = self.getMapCoordinates(currentSpace)
+        x, y = currentSpace 
+        spaceCoor = self.getMapCoordinates(x, y)
         self.map[spaceCoor] = self.START_SPACE
 
     def computePath(self):
@@ -125,7 +130,7 @@ class PlanningNode :
 
             currentSpace = heappop(pointsToTraverse)[1]
             
-            if currentSpace == self.goal:
+            if currentSpace == self.end:
                 self.drawPath(path)
                 return True
                 
@@ -224,8 +229,8 @@ class PlanningNode :
         formatted_time = datetime.fromtimestamp(currentTime).strftime("%Y-%m-%d_%H-%M-%S")
 
         # Save image
-        cv2.imwrite(f"Map - {formatted_time}.png", image)
-        print(rospy.get_caller_id() + " > Image saved as 'Map - {formatted_time}.png' !")     
+        cv2.imwrite("Map - " + str(formatted_time) + ".png", image)
+        print(rospy.get_caller_id() + " > Image saved as 'Map - "+ str(formatted_time) + ".png' !")     
 
 
     def getSpace(self, x, y):
